@@ -179,6 +179,30 @@
     }
     .hist-time{color:var(--muted); font-size:12px}
     .note{color:var(--muted); font-size:12px; margin:0}
+    .form{
+      margin-top:16px;
+      border-top:1px solid var(--line);
+      padding-top:16px;
+      display:grid;
+      gap:10px;
+    }
+    .form label{
+      display:grid;
+      gap:6px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .form input,
+    .form textarea{
+      width:100%;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      border-radius:12px;
+      padding:10px 12px;
+      font: inherit;
+    }
+    .form textarea{min-height:120px; resize:vertical}
     footer{margin-top:16px;color:var(--muted);font-size:12px;padding:0 2px}
   </style>
 </head>
@@ -221,6 +245,27 @@
           <ul class="hist-list" id="histList"></ul>
           <p class="note">※ 당첨을 보장하지 않습니다. 그냥 재미로만!</p>
         </div>
+
+        <form class="form" action="https://formspree.io/f/xojnyqln" method="POST">
+          <h3 style="margin:0;font-size:13px;color:var(--muted)">제휴 문의</h3>
+          <label>
+            담당자명
+            <input type="text" name="name" placeholder="이름" required />
+          </label>
+          <label>
+            이메일
+            <input type="email" name="email" placeholder="email@company.com" required />
+          </label>
+          <label>
+            회사/브랜드명
+            <input type="text" name="company" placeholder="회사명" />
+          </label>
+          <label>
+            문의 내용
+            <textarea name="message" placeholder="협업 제안 내용을 간단히 적어주세요" required></textarea>
+          </label>
+          <button class="primary" type="submit">문의 보내기</button>
+        </form>
       </div>
     </section>
 

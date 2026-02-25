@@ -100,6 +100,27 @@
       border:1px dashed var(--line);
       background:transparent;
     }
+    .seg{
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    .seg input{display:none}
+    .seg label{
+      font-size:11px;
+      color:var(--muted);
+      border:1px solid var(--line);
+      padding:6px 10px;
+      border-radius:999px;
+      cursor:pointer;
+      background:rgba(255,255,255,.04);
+    }
+    .seg input:checked + label{
+      border:0;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color:#061022;
+      font-weight:800;
+    }
     .fab{
       position:fixed;
       right:24px;
@@ -147,9 +168,13 @@
       padding:12px;
       display:grid;
       gap:10px;
-      grid-template-columns: 1fr 120px 120px 90px 80px;
+      grid-template-columns: 1fr 220px 120px 70px 70px;
       align-items:center;
       backdrop-filter: blur(10px);
+    }
+    .composer.floating{
+      transform: translate(-50%, -100%);
+      bottom:auto;
     }
     .composer[aria-hidden="true"]{display:none}
     @media (max-width: 820px){
@@ -205,6 +230,7 @@
         radial-gradient(1.5px 1.5px at 75% 75%, rgba(255,255,255,.4), transparent 60%),
         radial-gradient(1.5px 1.5px at 25% 70%, rgba(255,255,255,.4), transparent 60%),
         linear-gradient(180deg, #080a18, #0d1430 70%, #0b1230);
+      cursor: crosshair;
     }
     .sky::before{
       content:"";
@@ -385,19 +411,28 @@
   <button class="fab" id="openInput" aria-expanded="false">새 별</button>
   <div class="composer hidden" id="composer" aria-label="빠른 추가" aria-hidden="true">
     <input type="text" id="quickTitle" placeholder="할 일 한 줄" aria-label="할 일 한 줄" />
-    <select id="quickKind" aria-label="종류">
-      <option value="업무">업무</option>
-      <option value="공부">공부</option>
-      <option value="운동">운동</option>
-      <option value="가족">가족</option>
-      <option value="취미">취미</option>
-      <option value="휴식">휴식</option>
-    </select>
-    <select id="quickIntensity" aria-label="강도">
-      <option value="상">상</option>
-      <option value="중" selected>중</option>
-      <option value="하">하</option>
-    </select>
+    <div class="seg" role="group" aria-label="종류">
+      <input type="radio" id="kind-work" name="quickKind" value="업무" checked />
+      <label for="kind-work">업무</label>
+      <input type="radio" id="kind-study" name="quickKind" value="공부" />
+      <label for="kind-study">공부</label>
+      <input type="radio" id="kind-ex" name="quickKind" value="운동" />
+      <label for="kind-ex">운동</label>
+      <input type="radio" id="kind-family" name="quickKind" value="가족" />
+      <label for="kind-family">가족</label>
+      <input type="radio" id="kind-hobby" name="quickKind" value="취미" />
+      <label for="kind-hobby">취미</label>
+      <input type="radio" id="kind-rest" name="quickKind" value="휴식" />
+      <label for="kind-rest">휴식</label>
+    </div>
+    <div class="seg" role="group" aria-label="강도">
+      <input type="radio" id="int-high" name="quickIntensity" value="상" />
+      <label for="int-high">상</label>
+      <input type="radio" id="int-mid" name="quickIntensity" value="중" checked />
+      <label for="int-mid">중</label>
+      <input type="radio" id="int-low" name="quickIntensity" value="하" />
+      <label for="int-low">하</label>
+    </div>
     <button class="primary" id="quickAdd">추가</button>
     <button class="ghost" id="quickCancel">취소</button>
   </div>
@@ -424,8 +459,8 @@
     const $listPanel = document.getElementById('listPanel');
     const $composer = document.getElementById('composer');
     const $quickTitle = document.getElementById('quickTitle');
-    const $quickKind = document.getElementById('quickKind');
-    const $quickIntensity = document.getElementById('quickIntensity');
+    const $quickKind = document.querySelector('input[name="quickKind"]:checked');
+    const $quickIntensity = document.querySelector('input[name="quickIntensity"]:checked');
     const $quickAdd = document.getElementById('quickAdd');
     const $quickCancel = document.getElementById('quickCancel');
     const $toast = document.getElementById('toast');
@@ -728,13 +763,15 @@
         alert('할 일을 한 줄로 입력해 주세요.');
         return;
       }
+      const kind = document.querySelector('input[name="quickKind"]:checked')?.value || '업무';
+      const intensity = document.querySelector('input[name="quickIntensity"]:checked')?.value || '중';
       const dateVal = $date.value || toISO(new Date());
       addTaskFrom({
         title,
         date: dateVal,
         mood: $mood.value,
-        intensity: $quickIntensity.value,
-        kind: $quickKind.value,
+        intensity,
+        kind,
         note: '',
         x: pendingPos ? pendingPos.x : getSeedX(tasks.length),
         y: pendingPos ? pendingPos.y : getSeedY(tasks.length)
@@ -742,15 +779,26 @@
       closeComposer();
     }
 
-    function openComposer(){
+    function openComposerAt(x, y){
       $composer.classList.remove('hidden');
       $composer.setAttribute('aria-hidden', 'false');
+      if(typeof x === 'number' && typeof y === 'number'){
+        $composer.classList.add('floating');
+        $composer.style.left = `${x}px`;
+        $composer.style.top = `${y}px`;
+      } else {
+        $composer.classList.remove('floating');
+        $composer.style.left = '50%';
+        $composer.style.top = '';
+      }
       $quickTitle.focus();
     }
 
     function closeComposer(){
       $composer.classList.add('hidden');
       $composer.setAttribute('aria-hidden', 'true');
+      $composer.classList.remove('floating');
+      $composer.style.top = '';
       pendingPos = null;
     }
 
@@ -895,7 +943,7 @@
     $clear.addEventListener('click', clearAll);
     $openInput.addEventListener('click', () => {
       const isHidden = $composer.classList.contains('hidden');
-      if(isHidden) openComposer();
+      if(isHidden) openComposerAt();
       else closeComposer();
       $openInput.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
       $openInput.textContent = isHidden ? '닫기' : '새 별';
@@ -955,7 +1003,7 @@
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
       pendingPos = { x: clamp(x, 4, 96), y: clamp(y, 6, 94) };
-      openComposer();
+      openComposerAt(e.clientX, e.clientY - 10);
     });
     $sky.addEventListener('pointerdown', (e) => {
       const star = e.target.closest('.star');
@@ -965,7 +1013,7 @@
         const x = ((e.clientX - rect.left) / rect.width) * 100;
         const y = ((e.clientY - rect.top) / rect.height) * 100;
         pendingPos = { x: clamp(x, 4, 96), y: clamp(y, 6, 94) };
-        openComposer();
+        openComposerAt(e.clientX, e.clientY - 10);
       }, 450);
     });
     $sky.addEventListener('pointerup', () => { clearTimeout(longPressTimer); });

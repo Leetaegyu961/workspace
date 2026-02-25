@@ -121,6 +121,58 @@
       z-index:4;
       box-shadow:var(--shadow);
     }
+    .sky-hint{
+      position:absolute;
+      left:18px;
+      bottom:16px;
+      font-size:12px;
+      color:var(--muted);
+      background:rgba(8,12,26,.55);
+      border:1px solid var(--line);
+      padding:6px 10px;
+      border-radius:999px;
+      backdrop-filter: blur(6px);
+    }
+    .composer{
+      position:fixed;
+      left:50%;
+      bottom:26px;
+      transform: translateX(-50%);
+      width:min(560px, calc(100vw - 32px));
+      z-index:6;
+      background:rgba(8,12,26,.9);
+      border:1px solid var(--line);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      padding:12px;
+      display:grid;
+      gap:10px;
+      grid-template-columns: 1fr 120px 120px 90px 80px;
+      align-items:center;
+      backdrop-filter: blur(10px);
+    }
+    .composer[aria-hidden="true"]{display:none}
+    @media (max-width: 820px){
+      .composer{grid-template-columns: 1fr 1fr; }
+    }
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:96px;
+      transform: translateX(-50%);
+      background:rgba(8,12,26,.9);
+      border:1px solid var(--line);
+      color:var(--text);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      box-shadow:var(--shadow);
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+      z-index:7;
+    }
+    .toast.show{opacity:1; transform: translateX(-50%) translateY(-6px)}
     .scope-bar{
       display:flex;gap:8px;flex-wrap:wrap;margin-top:12px
     }
@@ -292,6 +344,7 @@
         <h2 style="margin:0 0 10px;font-size:16px" id="skyTitle">오늘의 밤하늘</h2>
         <div class="sky" id="sky" role="img" aria-label="일정이 별로 표시되는 영역">
           <canvas class="constellation" id="constellation" aria-hidden="true"></canvas>
+          <div class="sky-hint">빈 하늘을 클릭해 별을 추가하세요</div>
         </div>
         <div class="legend">
           <span><span class="dot todo"></span>진행 중</span>
@@ -329,7 +382,26 @@
     </footer>
   </div>
 
-  <button class="fab" id="openInput" aria-expanded="false">별 만들기</button>
+  <button class="fab" id="openInput" aria-expanded="false">새 별</button>
+  <div class="composer hidden" id="composer" aria-label="빠른 추가" aria-hidden="true">
+    <input type="text" id="quickTitle" placeholder="할 일 한 줄" aria-label="할 일 한 줄" />
+    <select id="quickKind" aria-label="종류">
+      <option value="업무">업무</option>
+      <option value="공부">공부</option>
+      <option value="운동">운동</option>
+      <option value="가족">가족</option>
+      <option value="취미">취미</option>
+      <option value="휴식">휴식</option>
+    </select>
+    <select id="quickIntensity" aria-label="강도">
+      <option value="상">상</option>
+      <option value="중" selected>중</option>
+      <option value="하">하</option>
+    </select>
+    <button class="primary" id="quickAdd">추가</button>
+    <button class="ghost" id="quickCancel">취소</button>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite">별이 만들어졌어요. 클릭해서 완료를 체크하세요.</div>
 
   <script>
     const $title = document.getElementById('title');
@@ -350,6 +422,13 @@
     const $openInput = document.getElementById('openInput');
     const $inputPanel = document.getElementById('inputPanel');
     const $listPanel = document.getElementById('listPanel');
+    const $composer = document.getElementById('composer');
+    const $quickTitle = document.getElementById('quickTitle');
+    const $quickKind = document.getElementById('quickKind');
+    const $quickIntensity = document.getElementById('quickIntensity');
+    const $quickAdd = document.getElementById('quickAdd');
+    const $quickCancel = document.getElementById('quickCancel');
+    const $toast = document.getElementById('toast');
 
     const tasks = [];
     const aggregatePositions = new Map();
@@ -357,6 +436,8 @@
     let scope = 'day';
     let focusDate = new Date();
     let dragging = null;
+    let pendingPos = null;
+    let longPressTimer = null;
 
     function pad(n){return String(n).padStart(2,'0');}
     function toISO(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
@@ -593,6 +674,35 @@
       $done.textContent = `완료 ${doneTotal}개`;
     }
 
+    function buildTask(values){
+      const id = Date.now() + Math.random().toString(16).slice(2);
+      return {
+        id,
+        title: values.title,
+        date: values.date,
+        mood: values.mood,
+        intensity: values.intensity,
+        kind: values.kind,
+        note: values.note,
+        done: false,
+        justAdded: true,
+        x: values.x,
+        y: values.y,
+        size: sizeByIntensity(values.intensity)
+      };
+    }
+
+    function addTaskFrom(values){
+      tasks.push(buildTask(values));
+      $title.value = '';
+      $note.value = '';
+      $quickTitle.value = '';
+      focusDate = parseISO(values.date);
+      pendingPos = null;
+      render();
+      showToast(pickLine(createLines));
+    }
+
     function addTask(){
       const title = $title.value.trim();
       if(!title){
@@ -600,31 +710,82 @@
         return;
       }
       const dateVal = $date.value || toISO(new Date());
-      const id = Date.now() + Math.random().toString(16).slice(2);
-      tasks.push({
-        id,
+      addTaskFrom({
         title,
         date: dateVal,
         mood: $mood.value,
         intensity: $intensity.value,
         kind: $kind.value,
         note: $note.value.trim(),
-        done: false,
-        justAdded: true,
-        x: getSeedX(tasks.length),
-        y: getSeedY(tasks.length),
-        size: sizeByIntensity($intensity.value)
+        x: pendingPos ? pendingPos.x : getSeedX(tasks.length),
+        y: pendingPos ? pendingPos.y : getSeedY(tasks.length)
       });
-      $title.value = '';
-      $note.value = '';
-      focusDate = parseISO(dateVal);
-      render();
+    }
+
+    function addTaskQuick(){
+      const title = $quickTitle.value.trim();
+      if(!title){
+        alert('할 일을 한 줄로 입력해 주세요.');
+        return;
+      }
+      const dateVal = $date.value || toISO(new Date());
+      addTaskFrom({
+        title,
+        date: dateVal,
+        mood: $mood.value,
+        intensity: $quickIntensity.value,
+        kind: $quickKind.value,
+        note: '',
+        x: pendingPos ? pendingPos.x : getSeedX(tasks.length),
+        y: pendingPos ? pendingPos.y : getSeedY(tasks.length)
+      });
+      closeComposer();
+    }
+
+    function openComposer(){
+      $composer.classList.remove('hidden');
+      $composer.setAttribute('aria-hidden', 'false');
+      $quickTitle.focus();
+    }
+
+    function closeComposer(){
+      $composer.classList.add('hidden');
+      $composer.setAttribute('aria-hidden', 'true');
+      pendingPos = null;
+    }
+
+    function showToast(message){
+      $toast.textContent = message;
+      $toast.classList.add('show');
+      clearTimeout($toast._t);
+      $toast._t = setTimeout(() => $toast.classList.remove('show'), 1600);
+    }
+
+    const createLines = [
+      '하나의 별이 태어났어요.',
+      '오늘의 마음이 별이 되었습니다.',
+      '작은 약속이 우주에 기록됐어요.',
+      '당신의 하루가 반짝이기 시작했어요.',
+      '이 순간이 별자리에 남습니다.'
+    ];
+    const doneLines = [
+      '별 하나가 더 밝아졌어요.',
+      '완료한 순간, 우주가 응답합니다.',
+      '작은 완성이 큰 빛이 됩니다.',
+      '당신의 하루가 한 줄 더 빛나요.',
+      '오늘의 용기가 별이 되었습니다.'
+    ];
+    function pickLine(arr){
+      return arr[Math.floor(Math.random() * arr.length)];
     }
 
     function toggleDone(id){
       const t = tasks.find(x => x.id === id);
       if(!t) return;
       t.done = !t.done;
+      if(t.done){
+        showToast(pickLine(doneLines));
+      }
       render();
     }
 
@@ -733,17 +894,24 @@
     $add.addEventListener('click', addTask);
     $clear.addEventListener('click', clearAll);
     $openInput.addEventListener('click', () => {
-      const isHidden = $inputPanel.classList.contains('hidden');
-      $inputPanel.classList.toggle('hidden', !isHidden);
-      $listPanel.classList.toggle('hidden', !isHidden);
+      const isHidden = $composer.classList.contains('hidden');
+      if(isHidden) openComposer();
+      else closeComposer();
       $openInput.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-      $openInput.textContent = isHidden ? '닫기' : '별 만들기';
-      if(isHidden) $title.focus();
+      $openInput.textContent = isHidden ? '닫기' : '새 별';
     });
+    $quickAdd.addEventListener('click', addTaskQuick);
+    $quickCancel.addEventListener('click', closeComposer);
     $title.addEventListener('keydown', (e) => {
       if(e.key === 'Enter'){
         e.preventDefault();
         addTask();
+      }
+    });
+    $quickTitle.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        addTaskQuick();
       }
     });
 
@@ -780,6 +948,35 @@
     });
     $sky.addEventListener('pointerup', () => { dragging = null; });
     $sky.addEventListener('pointerleave', () => { dragging = null; });
+    $sky.addEventListener('click', (e) => {
+      const star = e.target.closest('.star');
+      if(star) return;
+      const rect = $sky.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      pendingPos = { x: clamp(x, 4, 96), y: clamp(y, 6, 94) };
+      openComposer();
+    });
+    $sky.addEventListener('pointerdown', (e) => {
+      const star = e.target.closest('.star');
+      if(star) return;
+      longPressTimer = setTimeout(() => {
+        const rect = $sky.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        pendingPos = { x: clamp(x, 4, 96), y: clamp(y, 6, 94) };
+        openComposer();
+      }, 450);
+    });
+    $sky.addEventListener('pointerup', () => { clearTimeout(longPressTimer); });
+    $sky.addEventListener('pointerleave', () => { clearTimeout(longPressTimer); });
+    document.addEventListener('click', (e) => {
+      const inComposer = e.target.closest('#composer');
+      const isOpen = !$composer.classList.contains('hidden');
+      if(!inComposer && isOpen && !e.target.closest('#openInput')){
+        closeComposer();
+      }
+    });
     window.addEventListener('resize', () => render());
 
     const today = new Date();

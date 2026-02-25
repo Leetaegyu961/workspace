@@ -153,7 +153,7 @@
       left:50%;
       bottom:26px;
       transform: translateX(-50%);
-      width:min(560px, calc(100vw - 32px));
+      width:min(700px, calc(100vw - 32px));
       z-index:6;
       background:rgba(8,12,26,.9);
       border:1px solid var(--line);
@@ -162,7 +162,7 @@
       padding:12px;
       display:grid;
       gap:10px;
-      grid-template-columns: 1fr 220px 120px 70px 70px;
+      grid-template-columns: 1fr 260px 140px 80px 80px;
       align-items:center;
       backdrop-filter: blur(10px);
     }
@@ -172,7 +172,7 @@
     }
     .composer[aria-hidden="true"]{display:none}
     @media (max-width: 820px){
-      .composer{grid-template-columns: 1fr 1fr; }
+      .composer{grid-template-columns: 1fr 1fr; width:min(560px, calc(100vw - 24px));}
     }
     .toast{
       position:fixed;
@@ -191,6 +191,28 @@
       transition: opacity .2s ease, transform .2s ease;
       z-index:7;
     }
+    .intro{
+      position:fixed;
+      inset:0;
+      background:rgba(3,5,12,.7);
+      backdrop-filter: blur(10px);
+      z-index:8;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .intro-card{
+      width:min(560px, calc(100vw - 32px));
+      background:rgba(10,14,28,.92);
+      border:1px solid var(--line);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      padding:18px 18px 16px;
+    }
+    .intro-card h2{margin:0 0 8px;font-size:18px}
+    .intro-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+    .intro-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
     .toast.show{opacity:1; transform: translateX(-50%) translateY(-6px)}
     .scope-bar{
       display:flex;gap:8px;flex-wrap:wrap;margin-top:12px
@@ -257,13 +279,18 @@
     .star.is-new{
       animation: birth .7s ease-out, twinkle 4s ease-in-out infinite;
     }
+    .star.is-selected{
+      outline:2px solid rgba(255,255,255,.65);
+      outline-offset:4px;
+    }
     .star[data-done="true"]{
       background: radial-gradient(circle, #bfffea 0%, #8ef4d5 50%, rgba(142,244,213,.2) 70%, transparent 78%);
       box-shadow: 0 0 22px rgba(142,244,213,.6);
     }
     .star[data-done="false"]{
-      opacity:.6;
-      box-shadow: 0 0 10px rgba(122,167,255,.35);
+      opacity:.35;
+      box-shadow: 0 0 6px rgba(122,167,255,.2);
+      filter: saturate(.7);
     }
     .star[data-kind="업무"]{background: radial-gradient(circle, #ffe8c7 0%, #ffbf7a 55%, rgba(255,191,122,.2) 75%, transparent 80%); box-shadow:0 0 22px rgba(255,191,122,.55)}
     .star[data-kind="공부"]{background: radial-gradient(circle, #dbe8ff 0%, #8fb5ff 55%, rgba(143,181,255,.2) 75%, transparent 80%); box-shadow:0 0 22px rgba(143,181,255,.55)}
@@ -320,7 +347,7 @@
 <body>
   <div class="sky" id="sky" role="img" aria-label="일정이 별로 표시되는 영역">
     <canvas class="constellation" id="constellation" aria-hidden="true"></canvas>
-    <div class="sky-hint">빈 하늘을 클릭해 별을 추가하세요</div>
+    <div class="sky-hint">하늘을 클릭해 별을 추가하세요</div>
   </div>
 
   <div class="wrap">
@@ -379,7 +406,7 @@
 
   <button class="fab" id="openInput" aria-expanded="false">새 별</button>
   <div class="composer hidden" id="composer" aria-label="빠른 추가" aria-hidden="true">
-    <input type="text" id="quickTitle" placeholder="할 일 한 줄" aria-label="할 일 한 줄" />
+    <input type="text" id="quickTitle" placeholder="오늘 할 일을 적어주세요" aria-label="오늘 할 일" />
     <div class="seg" role="group" aria-label="종류">
       <input type="radio" id="kind-work" name="quickKind" value="업무" checked />
       <label for="kind-work">업무</label>
@@ -406,6 +433,17 @@
     <button class="ghost" id="quickCancel">취소</button>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite">별이 만들어졌어요. 클릭해서 완료를 체크하세요.</div>
+  <div class="intro" id="intro">
+    <div class="intro-card">
+      <h2>당신의 하루는 별이 됩니다</h2>
+      <p>하늘을 클릭하면 그 자리에 별이 태어납니다. 별을 클릭하면 완료가 체크되고, 모인 별은 당신만의 별자리가 됩니다.</p>
+      <p>복잡한 입력은 줄이고, 한 줄로 기록하세요.</p>
+      <div class="intro-actions">
+        <button class="primary" id="introStart">시작하기</button>
+        <button class="ghost" id="introLater">나중에</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const $title = document.getElementById('title');
@@ -425,11 +463,12 @@
     const $listPanel = document.getElementById('listPanel');
     const $composer = document.getElementById('composer');
     const $quickTitle = document.getElementById('quickTitle');
-    const $quickKind = document.querySelector('input[name="quickKind"]:checked');
-    const $quickIntensity = document.querySelector('input[name="quickIntensity"]:checked');
     const $quickAdd = document.getElementById('quickAdd');
     const $quickCancel = document.getElementById('quickCancel');
     const $toast = document.getElementById('toast');
+    const $intro = document.getElementById('intro');
+    const $introStart = document.getElementById('introStart');
+    const $introLater = document.getElementById('introLater');
 
     const tasks = [];
     const aggregatePositions = new Map();
@@ -437,8 +476,11 @@
     let scope = 'day';
     let focusDate = new Date();
     let dragging = null;
+    let suppressClickOnce = false;
     let pendingPos = null;
     let longPressTimer = null;
+    let linkPendingId = null;
+    const linksByScope = new Map();
 
     function pad(n){return String(n).padStart(2,'0');}
     function toISO(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
@@ -561,6 +603,23 @@
       });
     }
 
+    function linkKey(a, b){
+      return [a, b].sort().join('|');
+    }
+
+    function getScopeKey(){
+      if(scope === 'day') return `day:${toISO(focusDate)}`;
+      if(scope === 'week') return `week:${toISO(startOfWeek(focusDate))}`;
+      if(scope === 'month') return `month:${focusDate.getFullYear()}-${pad(focusDate.getMonth()+1)}`;
+      return `year:${focusDate.getFullYear()}`;
+    }
+
+    function getLinks(){
+      const key = getScopeKey();
+      if(!linksByScope.has(key)) linksByScope.set(key, new Set());
+      return linksByScope.get(key);
+    }
+
     function clearStars(){
       $sky.querySelectorAll('.star').forEach((n) => n.remove());
     }
@@ -577,7 +636,7 @@
         star.dataset.idx = String(idx);
         star.dataset.type = n.type;
         if(n.kind) star.dataset.kind = n.kind;
-        if(n.done) star.dataset.done = 'true';
+        star.dataset.done = n.done ? 'true' : 'false';
         if(n.status) star.dataset.status = n.status;
         star.style.left = n.x + '%';
         star.style.top = n.y + '%';
@@ -594,7 +653,15 @@
           ? `${n.title} / ${n.ref.date} / ${n.ref.kind} / ${n.ref.intensity}`
           : `${n.title} / ${n.meta}`;
 
-        star.addEventListener('click', () => {
+        star.addEventListener('click', (e) => {
+          if(e.shiftKey && n.type === 'task'){
+            handleLinkClick(n.ref.id, star);
+            return;
+          }
+          if(linkPendingId && n.type === 'task'){
+            handleLinkClick(n.ref.id, star);
+            return;
+          }
           if(n.type === 'task'){
             toggleDone(n.ref.id);
           } else {
@@ -777,6 +844,13 @@
       '당신의 하루가 한 줄 더 빛나요.',
       '오늘의 용기가 별이 되었습니다.'
     ];
+    const undoLines = [
+      '별이 잠시 숨을 고릅니다.',
+      '빛은 잠시 쉬어도 괜찮아요.',
+      '조금 느려도, 다시 빛날 거예요.',
+      '잠깐의 쉼도 기록됩니다.',
+      '별빛은 다시 켜질 거예요.'
+    ];
     function pickLine(arr){
       return arr[Math.floor(Math.random() * arr.length)];
     }
@@ -787,6 +861,8 @@
       t.done = !t.done;
       if(t.done){
         showToast(pickLine(doneLines));
+      } else {
+        showToast(pickLine(undoLines));
       }
       render();
     }
@@ -839,30 +915,27 @@
       if(nodes.length < 2) return;
 
       const points = nodes.map(n => ({
+        id: n.id,
+        type: n.type,
         x: (n.x / 100) * w,
-        y: (n.y / 100) * h,
-        done: n.done
+        y: (n.y / 100) * h
       }));
 
-      const donePoints = points.filter(p => p.done);
-      const active = donePoints.length >= 2 ? donePoints : points;
+      const links = Array.from(getLinks());
+      if(links.length === 0) return;
 
       ctx.lineWidth = 1;
       ctx.strokeStyle = 'rgba(140, 170, 255, 0.25)';
 
-      active.forEach((p, i) => {
-        const neighbors = active
-          .map((q, j) => ({ j, d: (p.x - q.x) ** 2 + (p.y - q.y) ** 2 }))
-          .filter(n => n.j !== i)
-          .sort((a, b) => a.d - b.d)
-          .slice(0, 2);
-        neighbors.forEach(n => {
-          const q = active[n.j];
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(q.x, q.y);
-          ctx.stroke();
-        });
+      links.forEach((lk) => {
+        const [a, b] = lk.split('|');
+        const p = points.find(x => x.id === a);
+        const q = points.find(x => x.id === b);
+        if(!p || !q) return;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q.x, q.y);
+        ctx.stroke();
       });
     }
 
@@ -891,6 +964,28 @@
         star.style.top = node.y + '%';
       }
       drawConstellation(dragging.nodes);
+    }
+
+    function handleLinkClick(id, starEl){
+      const links = getLinks();
+      if(linkPendingId === null){
+        linkPendingId = id;
+        starEl.classList.add('is-selected');
+        showToast('연결할 다음 별을 선택하세요.');
+        return;
+      }
+      if(linkPendingId === id){
+        linkPendingId = null;
+        starEl.classList.remove('is-selected');
+        return;
+      }
+      const key = linkKey(linkPendingId, id);
+      if(links.has(key)) links.delete(key);
+      else links.add(key);
+      linkPendingId = null;
+      $sky.querySelectorAll('.star.is-selected').forEach(n => n.classList.remove('is-selected'));
+      showToast('별자리가 이어졌어요.');
+      render();
     }
 
     $add.addEventListener('click', addTask);
@@ -936,32 +1031,20 @@
 
     $sky.addEventListener('pointerdown', (e) => {
       const star = e.target.closest('.star');
-      if(!star) return;
-      const nodes = buildNodes();
-      const idx = Number(star.dataset.idx);
-      const node = nodes[idx];
-      if(!node) return;
-      dragging = { idx, node, nodes };
-      $sky.setPointerCapture(e.pointerId);
-    });
-    $sky.addEventListener('pointermove', (e) => {
-      if(!dragging) return;
-      updateDrag(e.clientX, e.clientY);
-    });
-    $sky.addEventListener('pointerup', () => { dragging = null; });
-    $sky.addEventListener('pointerleave', () => { dragging = null; });
-    $sky.addEventListener('click', (e) => {
-      const star = e.target.closest('.star');
-      if(star) return;
-      const rect = $sky.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      pendingPos = { x: clamp(x, 4, 96), y: clamp(y, 6, 94) };
-      openComposerAt(e.clientX, e.clientY - 10);
-    });
-    $sky.addEventListener('pointerdown', (e) => {
-      const star = e.target.closest('.star');
-      if(star) return;
+      if(star){
+        const nodes = buildNodes();
+        const idx = Number(star.dataset.idx);
+        const node = nodes[idx];
+        if(!node) return;
+        dragging = { idx, node, nodes, startX: e.clientX, startY: e.clientY, moved: false };
+        $sky.setPointerCapture(e.pointerId);
+        longPressTimer = setTimeout(() => {
+          if(node.type === 'task'){
+            handleLinkClick(node.ref.id, star);
+          }
+        }, 500);
+        return;
+      }
       longPressTimer = setTimeout(() => {
         const rect = $sky.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -970,8 +1053,38 @@
         openComposerAt(e.clientX, e.clientY - 10);
       }, 450);
     });
-    $sky.addEventListener('pointerup', () => { clearTimeout(longPressTimer); });
-    $sky.addEventListener('pointerleave', () => { clearTimeout(longPressTimer); });
+    $sky.addEventListener('pointermove', (e) => {
+      if(!dragging) return;
+      const dx = e.clientX - dragging.startX;
+      const dy = e.clientY - dragging.startY;
+      if(Math.hypot(dx, dy) > 4){
+        dragging.moved = true;
+        clearTimeout(longPressTimer);
+      }
+      updateDrag(e.clientX, e.clientY);
+    });
+    $sky.addEventListener('pointerup', () => {
+      clearTimeout(longPressTimer);
+      if(dragging && dragging.moved) suppressClickOnce = true;
+      dragging = null;
+    });
+    $sky.addEventListener('pointerleave', () => {
+      clearTimeout(longPressTimer);
+      dragging = null;
+    });
+    $sky.addEventListener('click', (e) => {
+      if(suppressClickOnce){
+        suppressClickOnce = false;
+        return;
+      }
+      const star = e.target.closest('.star');
+      if(star) return;
+      const rect = $sky.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      pendingPos = { x: clamp(x, 4, 96), y: clamp(y, 6, 94) };
+      openComposerAt(e.clientX, e.clientY - 10);
+    });
     document.addEventListener('click', (e) => {
       const inComposer = e.target.closest('#composer');
       const isOpen = !$composer.classList.contains('hidden');
@@ -984,6 +1097,14 @@
     const today = new Date();
     $date.value = toISO(today);
     focusDate = today;
+
+    $introStart.addEventListener('click', () => {
+      $intro.remove();
+      openComposerAt();
+    });
+    $introLater.addEventListener('click', () => {
+      $intro.remove();
+    });
 
     render();
   </script>

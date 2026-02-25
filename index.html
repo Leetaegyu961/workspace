@@ -33,12 +33,6 @@
       min-height:100vh;
     }
     .wrap{max-width:1120px;margin:0 auto;padding:28px 18px 60px}
-    header{
-      display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;
-      margin-bottom:18px;
-    }
-    h1{font-size:22px;margin:0 0 6px;letter-spacing:.02em}
-    .sub{margin:0;color:var(--muted);font-size:13px;max-width:560px}
     .card{
       background:var(--card);
       border:1px solid var(--line);
@@ -219,9 +213,9 @@
     }
     .sky{
       position:relative;
-      min-height:560px;
-      border-radius:18px;
-      border:1px solid var(--line);
+      min-height:100vh;
+      border-radius:0;
+      border:0;
       overflow:hidden;
       background:
         radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,.5), transparent 60%),
@@ -324,18 +318,12 @@
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>우주 일정 기록</h1>
-        <p class="sub">하루 우주들이 모여 일주일·한달·일년 우주를 만듭니다. 완료한 순간, 별자리가 더 밝게 빛납니다.</p>
-      </div>
-      <div class="meta">
-        <span class="badge">감성 기반 일정 기록</span>
-        <span class="badge">로컬에서만 관리</span>
-      </div>
-    </header>
+  <div class="sky" id="sky" role="img" aria-label="일정이 별로 표시되는 영역">
+    <canvas class="constellation" id="constellation" aria-hidden="true"></canvas>
+    <div class="sky-hint">빈 하늘을 클릭해 별을 추가하세요</div>
+  </div>
 
+  <div class="wrap">
     <section class="layout">
       <div class="card panel hidden panel-drawer" id="inputPanel" aria-label="빠른 입력">
         <div class="quick-add">
@@ -366,22 +354,6 @@
         <div class="help">별을 드래그해 나만의 별자리를 만들 수 있어요. 별을 클릭하면 완료 체크가 토글됩니다.</div>
       </div>
 
-      <div class="card panel" aria-label="별 지도">
-        <h2 style="margin:0 0 10px;font-size:16px" id="skyTitle">오늘의 밤하늘</h2>
-        <div class="sky" id="sky" role="img" aria-label="일정이 별로 표시되는 영역">
-          <canvas class="constellation" id="constellation" aria-hidden="true"></canvas>
-          <div class="sky-hint">빈 하늘을 클릭해 별을 추가하세요</div>
-        </div>
-        <div class="legend">
-          <span><span class="dot todo"></span>진행 중</span>
-          <span><span class="dot done"></span>완료</span>
-          <span class="badge">완료 우주만 연결</span>
-        </div>
-        <div class="meta" style="margin-top:8px">
-          <span id="count">총 0개의 별</span>
-          <span id="done">완료 0개</span>
-        </div>
-      </div>
     </section>
 
     <section class="card panel hidden" id="listPanel" aria-label="일정 목록" style="margin-top:16px">
@@ -403,9 +375,6 @@
       <ul class="list" id="list"></ul>
     </section>
 
-    <footer>
-      이 페이지는 로컬에서만 동작하며, 새로고침 시 기록이 초기화됩니다. (필요하면 저장 기능을 추가할 수 있어요.)
-    </footer>
   </div>
 
   <button class="fab" id="openInput" aria-expanded="false">새 별</button>
@@ -449,10 +418,7 @@
     const $clear = document.getElementById('clear');
     const $sky = document.getElementById('sky');
     const $list = document.getElementById('list');
-    const $count = document.getElementById('count');
-    const $done = document.getElementById('done');
     const $constellation = document.getElementById('constellation');
-    const $skyTitle = document.getElementById('skyTitle');
     const $listTitle = document.getElementById('listTitle');
     const $openInput = document.getElementById('openInput');
     const $inputPanel = document.getElementById('inputPanel');
@@ -646,18 +612,13 @@
     }
 
     function renderTitles(){
-      const dateStr = toISO(focusDate);
       if(scope === 'day'){
-        $skyTitle.textContent = `하루 우주 · ${dateStr}`;
         $listTitle.textContent = '오늘의 별 목록';
       } else if(scope === 'week'){
-        $skyTitle.textContent = `일주일 우주 · ${toISO(startOfWeek(focusDate))}`;
         $listTitle.textContent = '이번 주의 별들';
       } else if(scope === 'month'){
-        $skyTitle.textContent = `한달 우주 · ${focusDate.getFullYear()}-${pad(focusDate.getMonth()+1)}`;
         $listTitle.textContent = '이번 달의 별들';
       } else {
-        $skyTitle.textContent = `일년 우주 · ${focusDate.getFullYear()}`;
         $listTitle.textContent = '올해의 별들';
       }
     }
@@ -681,9 +642,6 @@
           `;
           $list.appendChild(li);
         });
-        const doneCount = filtered.filter(t => t.done).length;
-        $count.textContent = `총 ${filtered.length}개의 별`;
-        $done.textContent = `완료 ${doneCount}개`;
         return;
       }
 
@@ -703,10 +661,6 @@
         $list.appendChild(li);
       });
 
-      const total = nodes.reduce((acc, n) => acc + (n.group ? n.group.total : 0), 0);
-      const doneTotal = nodes.reduce((acc, n) => acc + (n.group ? n.group.done : 0), 0);
-      $count.textContent = `총 ${total}개의 별`;
-      $done.textContent = `완료 ${doneTotal}개`;
     }
 
     function buildTask(values){
